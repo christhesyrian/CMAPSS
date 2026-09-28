@@ -191,6 +191,20 @@ in the config). Single models can be trained with e.g.
 Settings (window size, RUL cap, anomaly threshold, ensemble members, model
 hyperparameters) are in `configs/data.yaml`.
 
+### Results app
+
+A small Streamlit app for browsing the results: a cross-subset overview, the anomaly
+model comparison with each validation engine's anomaly score over its life, and
+predicted vs. actual RUL for the test engines.
+
+```bash
+pip install -e ".[app]"
+streamlit run app.py
+```
+
+It only reads the files in `reports/`, which are committed, so it works right after
+cloning — no need to run the pipeline first.
+
 Outputs:
 - `reports/metrics/` — metrics JSON for each model and subset
 - `reports/tables/` — per-cycle anomaly scores, comparison tables, RUL test predictions,
@@ -200,6 +214,7 @@ Outputs:
 ## Project structure
 
 ```
+app.py                                # Streamlit results app
 src/cmapps_telemetry_anomaly_detection/
 ├── cli.py
 ├── config.py                         # config loading + --subset override

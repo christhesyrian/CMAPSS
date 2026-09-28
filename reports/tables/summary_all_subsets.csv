@@ -1,0 +1,5 @@
+subset,best_single_anomaly_model,best_single_pr_auc,ensemble_all_pr_auc,ensemble_top3_pr_auc,best_rul_model,best_rul_test_rmse,best_rul_test_r2,rul_ensemble_test_rmse
+FD001,isolation_forest,0.851,0.7285,0.881,gradient_boosting,12.5265,0.9023,12.6302
+FD002,isolation_forest,0.8243,0.7017,0.8245,gradient_boosting,12.075,0.9209,12.1047
+FD003,isolation_forest,0.7984,0.6703,0.8222,gradient_boosting,12.5315,0.8976,13.3436
+FD004,isolation_forest,0.76,0.5814,0.7397,gradient_boosting,14.0175,0.8936,13.7963

@@ -19,6 +19,9 @@ dependencies = [
   "kaggle",
 ]
 
+[project.optional-dependencies]
+app = ["streamlit"]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

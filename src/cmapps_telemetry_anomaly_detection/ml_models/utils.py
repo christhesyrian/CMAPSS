@@ -9,7 +9,8 @@ Shared helpers used by every model script:
 
 import pandas as pd
 from pathlib import Path
-import yaml
+
+from cmapps_telemetry_anomaly_detection.config import load_config  # noqa: F401 (re-exported)
 
 
 # Columns that are never model inputs (ids, labels, op settings, split flag)
@@ -17,11 +18,6 @@ EXCLUDE_COLS = {
     "unit_id", "cycle", "RUL", "anomaly_label", "split",
     "op_setting_1", "op_setting_2", "op_setting_3",
 }
-
-
-def load_config(config_path: str = "configs/data.yaml") -> dict:
-    with open(config_path, "r") as f:
-        return yaml.safe_load(f)
 
 
 def get_feature_columns(df: pd.DataFrame) -> list[str]:

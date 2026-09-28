@@ -1,7 +1,7 @@
 """
 isolation_forest.py
 
-Isolation Forest anomaly detection model for CMAPSS FD001.
+Isolation Forest anomaly detection model for CMAPSS.
 
 Training strategy:
     - Train ONLY on healthy cycles (anomaly_label == 0, RUL > threshold)
@@ -113,7 +113,7 @@ def score_dataframe(
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_isolation_forest(config_path: str = "configs/data.yaml") -> dict:
+def run_isolation_forest(config_path: str = "configs/data.yaml", subset: str | None = None) -> dict:
     """
     Full Isolation Forest train + score + evaluate pipeline.
 
@@ -122,7 +122,7 @@ def run_isolation_forest(config_path: str = "configs/data.yaml") -> dict:
 
     Called by:  cmapps-tad train --model isolation_forest
     """
-    config        = load_config(config_path)
+    config        = load_config(config_path, subset)
     subset        = config["dataset"].get("subset", "FD001")
     model_dir     = Path(config["artifacts"]["model_path"])
     n_estimators  = config["models"]["isolation_forest"].get("n_estimators", 100)

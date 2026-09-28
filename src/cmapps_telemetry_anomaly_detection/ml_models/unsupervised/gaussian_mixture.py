@@ -108,12 +108,12 @@ def score_dataframe(
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_gaussian_mixture(config_path: str = "configs/data.yaml") -> dict:
+def run_gaussian_mixture(config_path: str = "configs/data.yaml", subset: str | None = None) -> dict:
     """
     Full Gaussian Mixture train + score + evaluate pipeline.
     Called by:  cmapps-tad train --model gaussian_mixture
     """
-    config          = load_config(config_path)
+    config          = load_config(config_path, subset)
     subset          = config["dataset"].get("subset", "FD001")
     model_dir       = Path(config["artifacts"]["model_path"])
     params          = config["models"]["gaussian_mixture"]

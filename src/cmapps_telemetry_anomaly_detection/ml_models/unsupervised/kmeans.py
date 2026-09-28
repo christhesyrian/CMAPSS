@@ -1,7 +1,7 @@
 """
 kmeans.py
 
-K-Means Clustering anomaly detection model for CMAPSS FD001.
+K-Means Clustering anomaly detection model for CMAPSS.
 """
 
 import numpy as np
@@ -89,20 +89,15 @@ def score_dataframe(
     X = scaler.transform(df[feature_cols].values)
 
     # Distance to nearest cluster center
-    distances = np.min(
-        np.linalg.norm(X[:, np.newaxis] - model.cluster_centers_, axis=2),
-        axis=1,
-    )
+    # transform() returns the distance to every cluster center
+    distances = model.transform(X).min(axis=1)
 
     # Compute threshold from healthy training distances
     if train_df is not None:
         X_train = scaler.transform(
             train_df[train_df["anomaly_label"] == 0][feature_cols].values
         )
-        train_distances = np.min(
-            np.linalg.norm(X_train[:, np.newaxis] - model.cluster_centers_, axis=2),
-            axis=1,
-        )
+        train_distances = model.transform(X_train).min(axis=1)
         threshold = np.percentile(train_distances, threshold_percentile)
         min_d, max_d = train_distances.min(), train_distances.max()
     else:
@@ -123,7 +118,7 @@ def score_dataframe(
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_kmeans(config_path: str = "configs/data.yaml") -> dict:
+def run_kmeans(config_path: str = "configs/data.yaml", subset: str | None = None) -> dict:
     """
     Full K-Means train + score + evaluate pipeline.
 
@@ -131,7 +126,7 @@ def run_kmeans(config_path: str = "configs/data.yaml") -> dict:
 
     Called by:  cmapps-tad train --model kmeans
     """
-    config        = load_config(config_path)
+    config        = load_config(config_path, subset)
     subset        = config["dataset"].get("subset", "FD001")
     model_dir     = Path(config["artifacts"]["model_path"])
     n_clusters    = config["models"]["kmeans"].get("n_clusters", 8)

@@ -18,6 +18,7 @@ Models compared:
     - Linear Regression            (simple baseline)
     - Random Forest                (non-linear baseline)
     - Gradient Boosting (HistGBM)  (usually the strongest on tabular data)
+    - Ensemble average             (mean of the three models' predictions)
 
 Evaluation:
     1. Validation engines  — every cycle of the held-out engines
@@ -122,12 +123,12 @@ def build_models(config: dict) -> dict:
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_rul_regression(config_path: str = "configs/data.yaml") -> dict:
+def run_rul_regression(config_path: str = "configs/data.yaml", subset: str | None = None) -> dict:
     """
     Train + evaluate all RUL models.
     Called by:  cmapps-tad train-rul
     """
-    config      = load_config(config_path)
+    config      = load_config(config_path, subset)
     subset      = config["dataset"].get("subset", "FD001")
     rul_cap     = config["rul"].get("cap", 125)
     model_dir   = Path(config["artifacts"]["model_path"])
@@ -157,6 +158,7 @@ def run_rul_regression(config_path: str = "configs/data.yaml") -> dict:
 
     # ── Train + evaluate each model ───────────────────────────────────────────
     results = {}
+    val_preds, test_preds = {}, {}
     test_predictions = test_df[["unit_id", "cycle", "true_RUL"]].copy()
 
     for name, model in build_models(config).items():
@@ -171,11 +173,23 @@ def run_rul_regression(config_path: str = "configs/data.yaml") -> dict:
             "validation": rul_metrics(y_val, val_pred),
             "test"      : rul_metrics(y_test, test_pred),
         }
+        val_preds[name], test_preds[name] = val_pred, test_pred
         test_predictions[f"pred_{name}"] = test_pred.round(2)
 
         joblib.dump(model, model_dir / f"rul_{name}_{subset}.joblib")
         print(f"[INFO] {name:18s} val RMSE: {results[name]['validation']['rmse']:.2f} "
               f"| test RMSE: {results[name]['test']['rmse']:.2f}")
+
+    # ── Ensemble: average the predictions of all three models ─────────────────
+    val_avg  = np.mean(list(val_preds.values()), axis=0)
+    test_avg = np.mean(list(test_preds.values()), axis=0)
+    results["ensemble_average"] = {
+        "validation": rul_metrics(y_val, val_avg),
+        "test"      : rul_metrics(y_test, test_avg),
+    }
+    test_predictions["pred_ensemble_average"] = test_avg.round(2)
+    print(f"[INFO] {'ensemble_average':18s} val RMSE: {results['ensemble_average']['validation']['rmse']:.2f} "
+          f"| test RMSE: {results['ensemble_average']['test']['rmse']:.2f}")
 
     # ── Save outputs ──────────────────────────────────────────────────────────
     best = min(results, key=lambda n: results[n]["validation"]["rmse"])

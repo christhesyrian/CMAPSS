@@ -1,7 +1,7 @@
 """
 pca_reconstruction.py
 
-PCA Reconstruction anomaly detection model for CMAPSS FD001.
+PCA Reconstruction anomaly detection model for CMAPSS.
 """
 
 import numpy as np
@@ -212,7 +212,7 @@ def score_dataframe(
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_pca_reconstruction(config_path: str = "configs/data.yaml") -> dict:
+def run_pca_reconstruction(config_path: str = "configs/data.yaml", subset: str | None = None) -> dict:
     """
     Full PCA Reconstruction train + score + evaluate pipeline.
 
@@ -220,7 +220,7 @@ def run_pca_reconstruction(config_path: str = "configs/data.yaml") -> dict:
 
     Called by:  cmapps-tad train --model pca_reconstruction
     """
-    config       = load_config(config_path)
+    config       = load_config(config_path, subset)
     subset       = config["dataset"].get("subset", "FD001")
     model_dir    = Path(config["artifacts"]["model_path"])
     n_components = config["models"]["pca_reconstruction"].get("n_components", None)

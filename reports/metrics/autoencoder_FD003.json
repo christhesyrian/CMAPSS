@@ -1,0 +1,21 @@
+{
+  "precision": 0.3456,
+  "recall": 0.2113,
+  "f1": 0.2623,
+  "roc_auc": 0.7265,
+  "pr_auc": 0.2638,
+  "total_rows": 4893,
+  "true_anomalies": 620,
+  "predicted_anomalies": 379,
+  "model": "autoencoder",
+  "subset": "FD003",
+  "config": {
+    "hidden_layers": [
+      32,
+      8,
+      32
+    ],
+    "epochs_run": 109,
+    "threshold_percentile": 95.0
+  }
+}

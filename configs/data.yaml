@@ -3,15 +3,22 @@ dataset:
   raw_path: "data/raw"
   processed_path: "data/processed"
   features_path: "data/features"
-  subset: "FD001"
+  subset: "FD001"            # default; override with --subset on the CLI
   anomaly_threshold: 30
   val_fraction: 0.2   # fraction of ENGINES held out for validation
+  # Number of distinct flight conditions per subset. Subsets with more than one
+  # get their sensors normalized within each condition during preprocessing.
+  operating_conditions:
+    FD001: 1
+    FD002: 6
+    FD003: 1
+    FD004: 6
 
 features:
   rolling_window: 10
 
 artifacts:
-  scaler_path: "artifacts/scalers/scaler_FD001.joblib"
+  scaler_path: "artifacts/scalers/scaler_{subset}.joblib"
   model_path: "artifacts/models"
 
 models:
@@ -54,3 +61,9 @@ rul:
 reports:
   metrics_path: "reports/metrics"
   tables_path: "reports/tables"
+
+ensemble:
+  # Members of the "top-3" ensemble. Picked as the 3 best models (by PR-AUC) on
+  # the FD001 validation engines. FD002-FD004 were NOT used to choose them, so
+  # their results are a fair test of whether the ensemble generalizes.
+  top_members: ["isolation_forest", "one_class_svm", "kmeans"]

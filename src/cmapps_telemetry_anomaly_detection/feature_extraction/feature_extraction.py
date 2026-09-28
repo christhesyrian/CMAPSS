@@ -1,7 +1,7 @@
 """
 feature_extraction.py
 
-Feature engineering pipeline for CMAPSS FD001 preprocessed data.
+Feature engineering pipeline for CMAPSS preprocessed data (FD001 - FD004).
 
 Pipeline:
     data/processed/  ->  data/features/
@@ -26,7 +26,8 @@ Why these features?
 import pandas as pd
 import numpy as np
 from pathlib import Path
-import yaml
+
+from cmapps_telemetry_anomaly_detection.config import load_config
 
 
 # ─────────────────────────────────────────────
@@ -160,7 +161,7 @@ def get_sensor_columns(df: pd.DataFrame) -> list[str]:
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_feature_extraction(config_path: str = "configs/data.yaml") -> None:
+def run_feature_extraction(config_path: str = "configs/data.yaml", subset: str | None = None) -> None:
     """
     Full feature extraction pipeline entry point.
 
@@ -172,8 +173,7 @@ def run_feature_extraction(config_path: str = "configs/data.yaml") -> None:
     """
 
     # ── Load config ───────────────────────────────────────────────────────────
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+    config = load_config(config_path, subset)
 
     processed_path = Path(config["dataset"]["processed_path"])
     features_path  = Path(config["dataset"]["features_path"])

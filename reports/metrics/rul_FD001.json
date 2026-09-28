@@ -54,6 +54,22 @@
         "nasa_score": 357.09,
         "n": 100
       }
+    },
+    "ensemble_average": {
+      "validation": {
+        "rmse": 10.2477,
+        "mae": 8.0691,
+        "r2": 0.9392,
+        "nasa_score": 6254.11,
+        "n": 4241
+      },
+      "test": {
+        "rmse": 12.6302,
+        "mae": 9.5384,
+        "r2": 0.9007,
+        "nasa_score": 271.41,
+        "n": 100
+      }
     }
   }
 }

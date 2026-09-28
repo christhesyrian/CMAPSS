@@ -104,12 +104,12 @@ def score_dataframe(
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_one_class_svm(config_path: str = "configs/data.yaml") -> dict:
+def run_one_class_svm(config_path: str = "configs/data.yaml", subset: str | None = None) -> dict:
     """
     Full One-Class SVM train + score + evaluate pipeline.
     Called by:  cmapps-tad train --model one_class_svm
     """
-    config       = load_config(config_path)
+    config       = load_config(config_path, subset)
     subset       = config["dataset"].get("subset", "FD001")
     model_dir    = Path(config["artifacts"]["model_path"])
     params       = config["models"]["one_class_svm"]

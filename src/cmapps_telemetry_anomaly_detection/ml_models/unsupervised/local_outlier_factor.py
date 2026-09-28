@@ -106,12 +106,12 @@ def score_dataframe(
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_local_outlier_factor(config_path: str = "configs/data.yaml") -> dict:
+def run_local_outlier_factor(config_path: str = "configs/data.yaml", subset: str | None = None) -> dict:
     """
     Full LOF train + score + evaluate pipeline.
     Called by:  cmapps-tad train --model local_outlier_factor
     """
-    config        = load_config(config_path)
+    config        = load_config(config_path, subset)
     subset        = config["dataset"].get("subset", "FD001")
     model_dir     = Path(config["artifacts"]["model_path"])
     params        = config["models"]["local_outlier_factor"]

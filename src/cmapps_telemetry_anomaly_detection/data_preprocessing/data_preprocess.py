@@ -1,7 +1,7 @@
 """
 data_preprocessing.py
 
-Preprocessing pipeline for CMAPSS FD001 dataset.
+Preprocessing pipeline for the CMAPSS datasets (FD001 - FD004).
 
 Pipeline:
     data/raw/  ->  data/processed/
@@ -13,16 +13,19 @@ Steps:
     4. Compute RUL (Remaining Useful Life) for training data
     5. Create binary proxy anomaly labels (last N cycles = anomalous)
     6. Split ENGINES into train / validation (so no engine is in both)
-    7. Scale sensor readings using MinMaxScaler (fit on train engines only)
-    8. Save processed train + test splits to data/processed/
+    7. FD002/FD004 only: normalize sensors within each operating condition
+    8. Scale sensor readings using MinMaxScaler (fit on train engines only)
+    9. Save processed train + test splits to data/processed/
 """
 
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 import joblib
-import yaml
+
+from cmapps_telemetry_anomaly_detection.config import load_config
 
 # ─────────────────────────────────────────────
 # CMAPSS column names (no header in raw files)
@@ -33,8 +36,10 @@ COLUMN_NAMES = (
     + [f"sensor_{i}" for i in range(1, 22)]
 )
 
-# Sensors known to be constant or near-constant in FD001 (safe to drop)
-# These carry no signal for anomaly detection
+# Sensors that carry no degradation signal (safe to drop):
+#   - FD001 / FD003 (one operating condition): constant or near-constant
+#   - FD002 / FD004 (six conditions): their value is set entirely by the
+#     operating condition, so they are constant within each condition
 SENSORS_TO_DROP = [
     "sensor_1",
     "sensor_5",
@@ -124,6 +129,56 @@ def split_engines(df: pd.DataFrame, val_fraction: float = 0.2, random_state: int
     return df
 
 
+def normalize_by_condition(
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    n_conditions: int,
+    random_state: int = 42,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict | None]:
+    """
+    For subsets flown under several operating conditions (FD002, FD004).
+
+    Problem:
+        In FD002/FD004 each engine flies at 6 different altitude / Mach / throttle
+        settings. 80-100% of each sensor's variation comes from which condition the
+        engine is in, not from wear. Without fixing this, the models just learn
+        "which flight condition is this?" instead of "is this engine degrading?".
+
+    Fix:
+        1. Cluster the 3 operating settings into `n_conditions` groups (K-Means).
+        2. For each condition, standardize every sensor using the mean / std of
+           that condition: (x - mean_c) / std_c
+
+        After this, a value of +2 means "2 std above normal FOR THIS CONDITION",
+        which is comparable across conditions.
+
+    Cluster centers and per-condition statistics are fit on TRAIN engines only.
+    For single-condition subsets (FD001/FD003) this step is skipped.
+    """
+    if n_conditions <= 1:
+        return train_df, test_df, None
+
+    op_cols     = ["op_setting_1", "op_setting_2", "op_setting_3"]
+    sensor_cols = get_sensor_columns(train_df)
+    train_mask  = train_df["split"] == "train"
+
+    kmeans = KMeans(n_clusters=n_conditions, n_init=10, random_state=random_state)
+    kmeans.fit(train_df.loc[train_mask, op_cols])
+    train_cond = kmeans.predict(train_df[op_cols])
+    test_cond  = kmeans.predict(test_df[op_cols])
+
+    # Per-condition mean / std, computed on training engines only
+    fit_df = train_df.loc[train_mask, sensor_cols]
+    means  = fit_df.groupby(train_cond[train_mask.values]).mean()
+    stds   = fit_df.groupby(train_cond[train_mask.values]).std().replace(0, 1e-6)
+
+    train_df[sensor_cols] = (train_df[sensor_cols] - means.loc[train_cond].values) / stds.loc[train_cond].values
+    test_df[sensor_cols]  = (test_df[sensor_cols]  - means.loc[test_cond].values)  / stds.loc[test_cond].values
+
+    print(f"[INFO] Normalized {len(sensor_cols)} sensors within {n_conditions} operating conditions")
+    return train_df, test_df, {"kmeans": kmeans, "means": means, "stds": stds}
+
+
 def get_sensor_columns(df: pd.DataFrame) -> list[str]:
     """
     Return the list of sensor column names present in the DataFrame.
@@ -178,7 +233,7 @@ def load_test_rul(rul_filepath: Path) -> pd.DataFrame:
     return rul_df
 
 
-def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
+def run_preprocessing(config_path: str = "configs/data.yaml", subset: str | None = None) -> None:
     """
     Full preprocessing pipeline entry point.
 
@@ -189,8 +244,7 @@ def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
     """
 
     # ── Load config ──────────────────────────────────────────────────────────
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+    config = load_config(config_path, subset)
 
     raw_path       = Path(config["dataset"]["raw_path"])
     processed_path = Path(config["dataset"]["processed_path"])
@@ -199,6 +253,7 @@ def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
     anomaly_thresh = config["dataset"].get("anomaly_threshold", 30)
     val_fraction   = config["dataset"].get("val_fraction", 0.2)
     random_state   = config["models"].get("random_state", 42)
+    n_conditions   = config["dataset"]["n_conditions"]
 
     processed_path.mkdir(parents=True, exist_ok=True)
 
@@ -232,6 +287,16 @@ def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
     # ── Split engines into train / validation ─────────────────────────────────
     train_df = split_engines(train_df, val_fraction=val_fraction, random_state=random_state)
 
+    # ── Operating-condition normalization (FD002 / FD004) ─────────────────────
+    train_df, test_df, conditions = normalize_by_condition(
+        train_df, test_df, n_conditions, random_state
+    )
+    if conditions is not None:
+        cond_path = Path(scaler_path).parent / f"conditions_{subset}.joblib"
+        cond_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(conditions, cond_path)
+        print(f"[INFO] Condition normalizer saved to: {cond_path}")
+
     # ── Scale sensors ─────────────────────────────────────────────────────────
     train_df, test_df = scale_sensors(train_df, test_df, Path(scaler_path))
 
@@ -257,6 +322,7 @@ def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
 
     print("\n── Preprocessing Summary ────────────────────────────────")
     print(f"  Subset              : {subset}")
+    print(f"  Operating conditions: {n_conditions}")
     print(f"  Train rows          : {total:,}")
     print(f"  Train engines       : {(train_df.groupby('unit_id')['split'].first() == 'train').sum()}")
     print(f"  Val engines         : {(train_df.groupby('unit_id')['split'].first() == 'val').sum()}")

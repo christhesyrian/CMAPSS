@@ -1,0 +1,17 @@
+{
+  "precision": 0.298,
+  "recall": 0.6355,
+  "f1": 0.4058,
+  "roc_auc": 0.7808,
+  "pr_auc": 0.3778,
+  "total_rows": 4893,
+  "true_anomalies": 620,
+  "predicted_anomalies": 1322,
+  "model": "gaussian_mixture",
+  "subset": "FD003",
+  "config": {
+    "n_components": 5,
+    "covariance_type": "full",
+    "threshold_percentile": 95.0
+  }
+}

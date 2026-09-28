@@ -1,0 +1,17 @@
+{
+  "precision": 0.3197,
+  "recall": 0.1507,
+  "f1": 0.2049,
+  "roc_auc": 0.713,
+  "pr_auc": 0.2743,
+  "total_rows": 10553,
+  "true_anomalies": 1612,
+  "predicted_anomalies": 760,
+  "model": "pca_reconstruction",
+  "subset": "FD002",
+  "config": {
+    "n_components": 15,
+    "percentile": 95.0,
+    "explained_variance": 0.6833
+  }
+}

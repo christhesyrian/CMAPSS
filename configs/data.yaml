@@ -3,14 +3,22 @@ dataset:
   raw_path: "data/raw"
   processed_path: "data/processed"
   features_path: "data/features"
-  subset: "FD001"
+  subset: "FD001"            # default; override with --subset on the CLI
   anomaly_threshold: 30
+  val_fraction: 0.2   # fraction of ENGINES held out for validation
+  # Number of distinct flight conditions per subset. Subsets with more than one
+  # get their sensors normalized within each condition during preprocessing.
+  operating_conditions:
+    FD001: 1
+    FD002: 6
+    FD003: 1
+    FD004: 6
 
 features:
   rolling_window: 10
 
 artifacts:
-  scaler_path: "artifacts/scalers/scaler_FD001.joblib"
+  scaler_path: "artifacts/scalers/scaler_{subset}.joblib"
   model_path: "artifacts/models"
 
 models:
@@ -24,7 +32,38 @@ models:
   kmeans:
     n_clusters: 10
     threshold_percentile: 95.0
+  local_outlier_factor:
+    n_neighbors: 20
+    contamination: 0.05
+  one_class_svm:
+    nu: 0.05
+    gamma: "scale"
+    max_train_samples: 5000   # OCSVM training is O(n^2), so subsample
+  gaussian_mixture:
+    n_components: 5
+    covariance_type: "full"
+    threshold_percentile: 95.0
+  autoencoder:
+    hidden_layers: [32, 8, 32]
+    max_iter: 200
+    threshold_percentile: 95.0
+
+rul:
+  cap: 125   # piecewise-linear RUL target (early-life RUL clipped at 125)
+  random_forest:
+    n_estimators: 200
+    max_depth: 12
+  gradient_boosting:
+    max_iter: 300
+    learning_rate: 0.05
+    max_depth: 6
 
 reports:
   metrics_path: "reports/metrics"
   tables_path: "reports/tables"
+
+ensemble:
+  # Members of the "top-3" ensemble. Picked as the 3 best models (by PR-AUC) on
+  # the FD001 validation engines. FD002-FD004 were NOT used to choose them, so
+  # their results are a fair test of whether the ensemble generalizes.
+  top_members: ["isolation_forest", "one_class_svm", "kmeans"]

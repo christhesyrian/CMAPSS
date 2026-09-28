@@ -1,0 +1,75 @@
+{
+  "subset": "FD002",
+  "rul_cap": 125,
+  "n_features": 85,
+  "n_train_engines": 208,
+  "n_val_engines": 52,
+  "n_test_engines": 259,
+  "best_model_by_val_rmse": "gradient_boosting",
+  "models": {
+    "linear_regression": {
+      "validation": {
+        "rmse": 15.9906,
+        "mae": 12.7784,
+        "r2": 0.8531,
+        "nasa_score": 51811.77,
+        "n": 10553
+      },
+      "test": {
+        "rmse": 15.5499,
+        "mae": 12.5102,
+        "r2": 0.8689,
+        "nasa_score": 1196.71,
+        "n": 259
+      }
+    },
+    "random_forest": {
+      "validation": {
+        "rmse": 12.685,
+        "mae": 8.2692,
+        "r2": 0.9076,
+        "nasa_score": 35034.31,
+        "n": 10553
+      },
+      "test": {
+        "rmse": 12.884,
+        "mae": 9.3064,
+        "r2": 0.91,
+        "nasa_score": 723.85,
+        "n": 259
+      }
+    },
+    "gradient_boosting": {
+      "validation": {
+        "rmse": 11.4759,
+        "mae": 7.7225,
+        "r2": 0.9244,
+        "nasa_score": 25242.44,
+        "n": 10553
+      },
+      "test": {
+        "rmse": 12.075,
+        "mae": 8.3814,
+        "r2": 0.9209,
+        "nasa_score": 632.85,
+        "n": 259
+      }
+    },
+    "ensemble_average": {
+      "validation": {
+        "rmse": 11.8954,
+        "mae": 8.5694,
+        "r2": 0.9187,
+        "nasa_score": 26837.95,
+        "n": 10553
+      },
+      "test": {
+        "rmse": 12.1047,
+        "mae": 9.1073,
+        "r2": 0.9205,
+        "nasa_score": 618.06,
+        "n": 259
+      }
+    }
+  }
+}

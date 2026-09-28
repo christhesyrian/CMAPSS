@@ -1,0 +1,21 @@
+{
+  "precision": 0.7216,
+  "recall": 0.7484,
+  "f1": 0.7348,
+  "roc_auc": 0.9041,
+  "pr_auc": 0.7285,
+  "total_rows": 4241,
+  "true_anomalies": 620,
+  "predicted_anomalies": 643,
+  "model": "ensemble_all",
+  "subset": "FD001",
+  "members": [
+    "isolation_forest",
+    "pca_reconstruction",
+    "kmeans",
+    "local_outlier_factor",
+    "one_class_svm",
+    "gaussian_mixture",
+    "autoencoder"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "precision": 0.5036,
+  "recall": 0.6742,
+  "f1": 0.5766,
+  "roc_auc": 0.8629,
+  "pr_auc": 0.5982,
+  "total_rows": 4893,
+  "true_anomalies": 620,
+  "predicted_anomalies": 830,
+  "model": "local_outlier_factor",
+  "subset": "FD003",
+  "config": {
+    "n_neighbors": 20,
+    "contamination": 0.05
+  }
+}

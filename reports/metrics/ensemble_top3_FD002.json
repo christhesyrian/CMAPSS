@@ -1,0 +1,17 @@
+{
+  "precision": 0.7003,
+  "recall": 0.7959,
+  "f1": 0.7451,
+  "roc_auc": 0.955,
+  "pr_auc": 0.8245,
+  "total_rows": 10553,
+  "true_anomalies": 1612,
+  "predicted_anomalies": 1832,
+  "model": "ensemble_top3",
+  "subset": "FD002",
+  "members": [
+    "isolation_forest",
+    "one_class_svm",
+    "kmeans"
+  ]
+}

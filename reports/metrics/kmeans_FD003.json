@@ -1,0 +1,16 @@
+{
+  "precision": 0.5997,
+  "recall": 0.7274,
+  "f1": 0.6574,
+  "roc_auc": 0.9283,
+  "pr_auc": 0.7082,
+  "total_rows": 4893,
+  "true_anomalies": 620,
+  "predicted_anomalies": 752,
+  "model": "kmeans",
+  "subset": "FD003",
+  "config": {
+    "n_clusters": 10,
+    "threshold_percentile": 95.0
+  }
+}

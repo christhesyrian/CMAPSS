@@ -1,17 +1,17 @@
 {
-  "precision": 0.4549,
-  "recall": 0.2361,
-  "f1": 0.3109,
-  "roc_auc": 0.7114,
-  "pr_auc": 0.3153,
-  "total_rows": 20631,
-  "true_anomalies": 3100,
-  "predicted_anomalies": 1609,
+  "precision": 0.4464,
+  "recall": 0.2484,
+  "f1": 0.3192,
+  "roc_auc": 0.6892,
+  "pr_auc": 0.3032,
+  "total_rows": 4241,
+  "true_anomalies": 620,
+  "predicted_anomalies": 345,
   "model": "pca_reconstruction",
   "subset": "FD001",
   "config": {
     "n_components": 15,
     "percentile": 95.0,
-    "explained_variance": 0.7082
+    "explained_variance": 0.7085
   }
 }

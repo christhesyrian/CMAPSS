@@ -43,7 +43,6 @@ artifacts/*
 # Reports (optional to keep metrics only)
 # =========================
 reports/figures/*
-reports/tables/*
 # Keep metrics if small
 
 # =========================

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cmapps-telemetry-anomaly-detection"
 version = "0.1.0"
-description = "CMAPSS telemetry anomaly detection end-to-end pipeline (Kaggle ingestion, feature engineering, training, scoring)"
+description = "CMAPSS telemetry anomaly detection and remaining useful life (RUL) prediction pipeline"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -14,8 +14,13 @@ dependencies = [
   "pandas",
   "scikit-learn",
   "pyyaml",
+  "pyarrow",
+  "joblib",
   "kaggle",
 ]
+
+[project.optional-dependencies]
+app = ["streamlit"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

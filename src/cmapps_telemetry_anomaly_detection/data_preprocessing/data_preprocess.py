@@ -12,8 +12,9 @@ Steps:
     3. Drop constant / near-zero-variance sensors
     4. Compute RUL (Remaining Useful Life) for training data
     5. Create binary proxy anomaly labels (last N cycles = anomalous)
-    6. Scale sensor readings using MinMaxScaler
-    7. Save processed train + test splits to data/processed/
+    6. Split ENGINES into train / validation (so no engine is in both)
+    7. Scale sensor readings using MinMaxScaler (fit on train engines only)
+    8. Save processed train + test splits to data/processed/
 """
 
 import pandas as pd
@@ -104,12 +105,31 @@ def drop_low_variance_sensors(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def split_engines(df: pd.DataFrame, val_fraction: float = 0.2, random_state: int = 42) -> pd.DataFrame:
+    """
+    Assign each ENGINE (not each row) to either the train or validation split.
+
+    Why by engine?
+        Consecutive cycles of the same engine are almost identical. If rows were
+        split randomly, cycle 120 of engine 7 could be in train and cycle 121 in
+        validation, and the model would just memorise engine 7. Splitting by
+        unit_id means validation engines are completely unseen during training.
+    """
+    rng = np.random.default_rng(random_state)
+    units = df["unit_id"].unique()
+    n_val = int(round(len(units) * val_fraction))
+    val_units = rng.choice(units, size=n_val, replace=False)
+
+    df["split"] = np.where(df["unit_id"].isin(val_units), "val", "train")
+    return df
+
+
 def get_sensor_columns(df: pd.DataFrame) -> list[str]:
     """
     Return the list of sensor column names present in the DataFrame.
     Excludes metadata and label columns.
     """
-    non_sensor_cols = {"unit_id", "cycle", "RUL", "anomaly_label",
+    non_sensor_cols = {"unit_id", "cycle", "RUL", "anomaly_label", "split",
                        "op_setting_1", "op_setting_2", "op_setting_3"}
     return [c for c in df.columns if c not in non_sensor_cols]
 
@@ -120,17 +140,19 @@ def scale_sensors(
     scaler_save_path: Path,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Fit MinMaxScaler on training sensors only, then transform both splits.
+    Fit MinMaxScaler on training ENGINES only, then transform everything.
 
     IMPORTANT:
-        Scaler is fit on TRAIN only to prevent data leakage.
-        Same scaler is then applied to TEST.
+        Scaler is fit on the train split only to prevent data leakage.
+        Validation engines and the test set never influence the min/max values.
         Scaler is saved to artifacts/scalers/ for use at inference time.
     """
     sensor_cols = get_sensor_columns(train_df)
+    train_mask = train_df["split"] == "train"
 
     scaler = MinMaxScaler()
-    train_df[sensor_cols] = scaler.fit_transform(train_df[sensor_cols])
+    scaler.fit(train_df.loc[train_mask, sensor_cols])
+    train_df[sensor_cols] = scaler.transform(train_df[sensor_cols])
     test_df[sensor_cols] = scaler.transform(test_df[sensor_cols])
 
     # Save scaler so we can load it later without retraining
@@ -175,6 +197,8 @@ def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
     scaler_path    = Path(config["artifacts"]["scaler_path"])
     subset         = config["dataset"].get("subset", "FD001")
     anomaly_thresh = config["dataset"].get("anomaly_threshold", 30)
+    val_fraction   = config["dataset"].get("val_fraction", 0.2)
+    random_state   = config["models"].get("random_state", 42)
 
     processed_path.mkdir(parents=True, exist_ok=True)
 
@@ -205,6 +229,9 @@ def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
     train_df = compute_rul(train_df)
     train_df = add_proxy_labels(train_df, anomaly_threshold=anomaly_thresh)
 
+    # ── Split engines into train / validation ─────────────────────────────────
+    train_df = split_engines(train_df, val_fraction=val_fraction, random_state=random_state)
+
     # ── Scale sensors ─────────────────────────────────────────────────────────
     train_df, test_df = scale_sensors(train_df, test_df, Path(scaler_path))
 
@@ -231,6 +258,8 @@ def run_preprocessing(config_path: str = "configs/data.yaml") -> None:
     print("\n── Preprocessing Summary ────────────────────────────────")
     print(f"  Subset              : {subset}")
     print(f"  Train rows          : {total:,}")
+    print(f"  Train engines       : {(train_df.groupby('unit_id')['split'].first() == 'train').sum()}")
+    print(f"  Val engines         : {(train_df.groupby('unit_id')['split'].first() == 'val').sum()}")
     print(f"  Test rows           : {len(test_df):,}")
     print(f"  Sensors used        : {len(sensor_cols)}  {sensor_cols}")
     print(f"  Anomaly label (=1)  : {anomaly_count:,} rows  ({anomaly_pct:.1f}%)")

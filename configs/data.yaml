@@ -5,6 +5,7 @@ dataset:
   features_path: "data/features"
   subset: "FD001"
   anomaly_threshold: 30
+  val_fraction: 0.2   # fraction of ENGINES held out for validation
 
 features:
   rolling_window: 10
@@ -24,6 +25,31 @@ models:
   kmeans:
     n_clusters: 10
     threshold_percentile: 95.0
+  local_outlier_factor:
+    n_neighbors: 20
+    contamination: 0.05
+  one_class_svm:
+    nu: 0.05
+    gamma: "scale"
+    max_train_samples: 5000   # OCSVM training is O(n^2), so subsample
+  gaussian_mixture:
+    n_components: 5
+    covariance_type: "full"
+    threshold_percentile: 95.0
+  autoencoder:
+    hidden_layers: [32, 8, 32]
+    max_iter: 200
+    threshold_percentile: 95.0
+
+rul:
+  cap: 125   # piecewise-linear RUL target (early-life RUL clipped at 125)
+  random_forest:
+    n_estimators: 200
+    max_depth: 12
+  gradient_boosting:
+    max_iter: 300
+    learning_rate: 0.05
+    max_depth: 6
 
 reports:
   metrics_path: "reports/metrics"

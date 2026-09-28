@@ -11,42 +11,21 @@ Training strategy:
 
 """
 
-import json
 import pandas as pd
-import numpy as np
 from pathlib import Path
 from sklearn.ensemble import IsolationForest
-from sklearn.metrics import (
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    average_precision_score,
-)
 import joblib
-import yaml
 
-
-# ─────────────────────────────────────────────
-# Feature column helpers
-# ─────────────────────────────────────────────
-
-def get_feature_columns(df: pd.DataFrame) -> list[str]:
-    """
-    Return only the engineered feature columns for model input.
-
-    Excludes:
-        - metadata  : unit_id, cycle
-        - labels    : RUL, anomaly_label
-        - op settings: op_setting_1/2/3
-
-    Raw sensors + engineered features is used.
-    """
-    exclude = {
-        "unit_id", "cycle", "RUL", "anomaly_label",
-        "op_setting_1", "op_setting_2", "op_setting_3",
-    }
-    return [c for c in df.columns if c not in exclude]
+from cmapps_telemetry_anomaly_detection.ml_models.utils import (
+    load_config,
+    get_feature_columns,
+    load_train_val,
+)
+from cmapps_telemetry_anomaly_detection.ml_models.evaluations.metrics import (
+    evaluate,
+    print_metrics,
+    save_results,
+)
 
 
 # ─────────────────────────────────────────────
@@ -131,93 +110,27 @@ def score_dataframe(
 
 
 # ─────────────────────────────────────────────
-# Evaluation
-# ─────────────────────────────────────────────
-
-def evaluate(scored_df: pd.DataFrame) -> dict:
-    """
-    Evaluate anomaly detection performance against proxy labels.
-
-    Metrics:
-        Precision   : of all rows flagged as anomalous, how many truly are?
-        Recall      : of all truly anomalous rows, how many did we catch?
-        F1          : harmonic mean of precision + recall
-        ROC-AUC     : area under ROC curve (threshold-independent)
-        PR-AUC      : area under Precision-Recall curve
-                      (better than ROC-AUC for imbalanced datasets like this)
-    """
-    y_true  = scored_df["anomaly_label"].values
-    y_pred  = scored_df["predicted_label"].values
-    y_score = scored_df["anomaly_score"].values
-
-    metrics = {
-        "precision" : round(precision_score(y_true, y_pred, zero_division=0), 4),
-        "recall"    : round(recall_score(y_true, y_pred, zero_division=0), 4),
-        "f1"        : round(f1_score(y_true, y_pred, zero_division=0), 4),
-        "roc_auc"   : round(roc_auc_score(y_true, y_score), 4),
-        "pr_auc"    : round(average_precision_score(y_true, y_score), 4),
-        "total_rows"          : int(len(scored_df)),
-        "true_anomalies"      : int(y_true.sum()),
-        "predicted_anomalies" : int(y_pred.sum()),
-    }
-
-    return metrics
-
-
-def print_metrics(metrics: dict, model_name: str = "Isolation Forest") -> None:
-    print(f"\n── {model_name} Evaluation ──────────────────────────────")
-    print(f"  Precision           : {metrics['precision']:.4f}")
-    print(f"  Recall              : {metrics['recall']:.4f}")
-    print(f"  F1 Score            : {metrics['f1']:.4f}")
-    print(f"  ROC-AUC             : {metrics['roc_auc']:.4f}")
-    print(f"  PR-AUC              : {metrics['pr_auc']:.4f}")
-    print(f"  True anomalies      : {metrics['true_anomalies']:,}")
-    print(f"  Predicted anomalies : {metrics['predicted_anomalies']:,}")
-    print(f"  Total rows scored   : {metrics['total_rows']:,}")
-    print("─────────────────────────────────────────────────────────\n")
-
-
-# ─────────────────────────────────────────────
 # Pipeline entry point
 # ─────────────────────────────────────────────
 
-def run_isolation_forest(config_path: str = "configs/data.yaml") -> None:
+def run_isolation_forest(config_path: str = "configs/data.yaml") -> dict:
     """
     Full Isolation Forest train + score + evaluate pipeline.
 
+    Trains on healthy cycles of the TRAIN engines, then evaluates on the
+    held-out VALIDATION engines (never seen during training).
+
     Called by:  cmapps-tad train --model isolation_forest
     """
-
-    # ── Load config ───────────────────────────────────────────────────────────
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-
-    features_path  = Path(config["dataset"]["features_path"])
-    subset         = config["dataset"].get("subset", "FD001")
-
-    model_dir      = Path(config["artifacts"]["model_path"])
-    metrics_dir    = Path(config["reports"]["metrics_path"])
-    tables_dir     = Path(config["reports"]["tables_path"])
-
-    n_estimators   = config["models"]["isolation_forest"].get("n_estimators", 100)
-    contamination  = config["models"]["isolation_forest"].get("contamination", 0.05)
-    random_state   = config["models"].get("random_state", 42)
-
+    config        = load_config(config_path)
+    subset        = config["dataset"].get("subset", "FD001")
+    model_dir     = Path(config["artifacts"]["model_path"])
+    n_estimators  = config["models"]["isolation_forest"].get("n_estimators", 100)
+    contamination = config["models"]["isolation_forest"].get("contamination", 0.05)
+    random_state  = config["models"].get("random_state", 42)
     model_dir.mkdir(parents=True, exist_ok=True)
-    metrics_dir.mkdir(parents=True, exist_ok=True)
-    tables_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── Load feature data ─────────────────────────────────────────────────────
-    train_file = features_path / f"train_{subset}.parquet"
-    if not train_file.exists():
-        raise FileNotFoundError(
-            f"[ERROR] Features not found: {train_file}\n"
-            f"        Run 'cmapps-tad features' first."
-        )
-
-    print(f"[INFO] Loading features from: {train_file}")
-    train_df = pd.read_parquet(train_file)
-
+    train_df, val_df = load_train_val(config)
     feature_cols = get_feature_columns(train_df)
 
     # ── Train ─────────────────────────────────────────────────────────────────
@@ -229,16 +142,12 @@ def run_isolation_forest(config_path: str = "configs/data.yaml") -> None:
         random_state=random_state,
     )
 
-    # ── Save model artifact ───────────────────────────────────────────────────
     model_path = model_dir / f"isolation_forest_{subset}.joblib"
     joblib.dump(model, model_path)
     print(f"[INFO] Model saved -> {model_path}")
 
-    # ── Score full training set ───────────────────────────────────────────────
-    print("[INFO] Scoring full training set...")
-    scored_df = score_dataframe(model, train_df, feature_cols)
-
-    # ── Evaluate ──────────────────────────────────────────────────────────────
+    # ── Score + evaluate on validation engines ────────────────────────────────
+    scored_df = score_dataframe(model, val_df, feature_cols)
     metrics = evaluate(scored_df)
     metrics["model"]  = "isolation_forest"
     metrics["subset"] = subset
@@ -248,18 +157,7 @@ def run_isolation_forest(config_path: str = "configs/data.yaml") -> None:
         "random_state" : random_state,
     }
 
-    print_metrics(metrics)
-
-    # ── Save metrics JSON ─────────────────────────────────────────────────────
-    metrics_path = metrics_dir / f"isolation_forest_{subset}.json"
-    with open(metrics_path, "w") as f:
-        json.dump(metrics, f, indent=2)
-    print(f"[INFO] Metrics saved -> {metrics_path}")
-
-    # ── Save scores table ─────────────────────────────────────────────────────
-    scores_path = tables_dir / f"isolation_forest_{subset}_scores.csv"
-    scored_df[["unit_id", "cycle", "RUL", "anomaly_label",
-               "anomaly_score", "predicted_label"]].to_csv(scores_path, index=False)
-    print(f"[INFO] Scores saved -> {scores_path}")
-
+    print_metrics(metrics, "Isolation Forest")
+    save_results(scored_df, metrics, config, "isolation_forest")
     print("[SUCCESS] Isolation Forest pipeline complete.")
+    return metrics

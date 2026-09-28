@@ -151,7 +151,7 @@ def get_sensor_columns(df: pd.DataFrame) -> list[str]:
     Return only sensor columns from the DataFrame.
     Excludes metadata, labels, and operational settings.
     """
-    exclude = {"unit_id", "cycle", "RUL", "anomaly_label",
+    exclude = {"unit_id", "cycle", "RUL", "anomaly_label", "split",
                "op_setting_1", "op_setting_2", "op_setting_3"}
     return [c for c in df.columns if c not in exclude and not c.startswith("op_")]
 
